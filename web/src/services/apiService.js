@@ -116,6 +116,41 @@ class ApiService {
     });
   }
 
+  // Client methods
+  async getClients(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = `/clients${queryString ? `?${queryString}` : ''}`;
+    return await this.request(endpoint);
+  }
+
+  async getClient(id) {
+    return await this.request(`/clients/${id}`);
+  }
+
+  async createClient(clientData) {
+    return await this.request('/clients', {
+      method: 'POST',
+      body: JSON.stringify(clientData)
+    });
+  }
+
+  async updateClient(id, clientData) {
+    return await this.request(`/clients/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(clientData)
+    });
+  }
+
+  async deleteClient(id) {
+    return await this.request(`/clients/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async getClientStats() {
+    return await this.request('/clients/stats/overview');
+  }
+
   // Logout method
   logout() {
     this.removeToken();

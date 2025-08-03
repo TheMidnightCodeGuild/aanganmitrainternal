@@ -16,6 +16,7 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import PrivateRoute from './PrivateRoute';
 import PublicRoute from './PublicRoute';
 import AddProperty from '../pages/AddProperty';
+import AddClient from '../pages/AddClient';
 
 const AppRoutes = () => {
   // HomeRedirect is now INSIDE the AuthProvider context
@@ -41,7 +42,9 @@ const AppRoutes = () => {
               <Route path="/properties/:id" element={<PropertyDetails />} />
               <Route path="/properties/edit/:id" element={<AddProperty />} />
               <Route path="/clients" element={<Clients />} />
+              <Route path="/clients/add" element={<AddClient />} />
               <Route path="/clients/:id" element={<ClientDetails />} />
+              <Route path="/clients/edit/:id" element={<AddClient />} />
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/open" element={<OpenList />} />
