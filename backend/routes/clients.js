@@ -123,9 +123,9 @@ router.post('/', auth, [
   body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
   body('email').isEmail().normalizeEmail().withMessage('Please enter a valid email'),
   body('phone').trim().isLength({ min: 10 }).withMessage('Phone number must be at least 10 characters'),
-  body('type').isIn(['buyer', 'seller', 'reference']).withMessage('Invalid client type'),
-  body('status').optional().isIn(['active', 'inactive', 'prospect', 'closed']).withMessage('Invalid status'),
-  body('source').optional().isIn(['website', 'referral', 'walk-in', 'social-media', 'other']).withMessage('Invalid source'),
+  body('type').isIn(['individual', 'broker', 'agency']).withMessage('Invalid client type'),
+  body('status').optional().isIn(['active', 'inactive', 'banned']).withMessage('Invalid status'),
+  body('leadSource').optional().isIn(['website', 'walk-in', 'instagram', 'facebook', 'referral', 'google', 'other']).withMessage('Invalid lead source'),
   body('assignedTo').optional().isMongoId().withMessage('Invalid assigned user ID')
 ], async (req, res) => {
   try {
@@ -142,17 +142,19 @@ router.post('/', auth, [
       address,
       type,
       status,
+      location,
+      leadSource,
+      tags,
       preferences,
       notes,
-      source,
       assignedTo
     } = req.body;
 
-    // Check if client already exists with same email and type
-    const existingClient = await Client.findOne({ email, type });
+    // Check if client already exists with same email
+    const existingClient = await Client.findOne({ email });
     if (existingClient) {
       return res.status(400).json({ 
-        message: `A ${type} with this email already exists` 
+        message: 'A client with this email already exists' 
       });
     }
 
@@ -166,7 +168,7 @@ router.post('/', auth, [
       status: status || 'active',
       preferences,
       notes,
-      source: source || 'other',
+      leadSource: leadSource || 'other',
       assignedTo: assignedTo || req.user._id
     });
 
@@ -184,7 +186,7 @@ router.post('/', auth, [
     console.error('Create client error:', error);
     if (error.code === 11000) {
       return res.status(400).json({ 
-        message: 'A client with this email and type already exists' 
+        message: 'A client with this email already exists' 
       });
     }
     res.status(500).json({ message: 'Server error while creating client' });
@@ -198,9 +200,9 @@ router.put('/:id', auth, [
   body('name').optional().trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
   body('email').optional().isEmail().normalizeEmail().withMessage('Please enter a valid email'),
   body('phone').optional().trim().isLength({ min: 10 }).withMessage('Phone number must be at least 10 characters'),
-  body('type').optional().isIn(['buyer', 'seller', 'reference']).withMessage('Invalid client type'),
-  body('status').optional().isIn(['active', 'inactive', 'prospect', 'closed']).withMessage('Invalid status'),
-  body('source').optional().isIn(['website', 'referral', 'walk-in', 'social-media', 'other']).withMessage('Invalid source'),
+  body('type').optional().isIn(['individual', 'broker', 'agency']).withMessage('Invalid client type'),
+  body('status').optional().isIn(['active', 'inactive', 'banned']).withMessage('Invalid status'),
+  body('leadSource').optional().isIn(['website', 'walk-in', 'instagram', 'facebook', 'referral', 'google', 'other']).withMessage('Invalid lead source'),
   body('assignedTo').optional().isMongoId().withMessage('Invalid assigned user ID')
 ], async (req, res) => {
   try {
@@ -215,16 +217,15 @@ router.put('/:id', auth, [
       return res.status(404).json({ message: 'Client not found' });
     }
 
-    // Check if email and type combination already exists (excluding current client)
-    if (req.body.email && req.body.type) {
+    // Check if email already exists (excluding current client)
+    if (req.body.email) {
       const existingClient = await Client.findOne({
         email: req.body.email,
-        type: req.body.type,
         _id: { $ne: req.params.id }
       });
       if (existingClient) {
         return res.status(400).json({ 
-          message: `A ${req.body.type} with this email already exists` 
+          message: 'A client with this email already exists' 
         });
       }
     }
@@ -251,7 +252,7 @@ router.put('/:id', auth, [
     }
     if (error.code === 11000) {
       return res.status(400).json({ 
-        message: 'A client with this email and type already exists' 
+        message: 'A client with this email already exists' 
       });
     }
     res.status(500).json({ message: 'Server error while updating client' });
@@ -295,11 +296,11 @@ router.get('/stats/overview', auth, async (req, res) => {
           activeClients: {
             $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
           },
-          prospectClients: {
-            $sum: { $cond: [{ $eq: ['$status', 'prospect'] }, 1, 0] }
+          inactiveClients: {
+            $sum: { $cond: [{ $eq: ['$status', 'inactive'] }, 1, 0] }
           },
-          closedClients: {
-            $sum: { $cond: [{ $eq: ['$status', 'closed'] }, 1, 0] }
+          bannedClients: {
+            $sum: { $cond: [{ $eq: ['$status', 'banned'] }, 1, 0] }
           }
         }
       }
@@ -317,7 +318,7 @@ router.get('/stats/overview', auth, async (req, res) => {
     const sourceStats = await Client.aggregate([
       {
         $group: {
-          _id: '$source',
+          _id: '$leadSource',
           count: { $sum: 1 }
         }
       }
@@ -327,8 +328,8 @@ router.get('/stats/overview', auth, async (req, res) => {
       overview: stats[0] || {
         totalClients: 0,
         activeClients: 0,
-        prospectClients: 0,
-        closedClients: 0
+        inactiveClients: 0,
+        bannedClients: 0
       },
       byType: typeStats,
       bySource: sourceStats

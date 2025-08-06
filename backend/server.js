@@ -30,6 +30,8 @@ app.get('/', (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/properties', require('./routes/properties'));
 app.use('/api/clients', require('./routes/clients'));
+app.use('/api/client-roles', require('./routes/clientRoles'));
+app.use('/api/referrals', require('./routes/referrals'));
 // app.use('/api/users', require('./routes/users'));
 
 // Error handling middleware
