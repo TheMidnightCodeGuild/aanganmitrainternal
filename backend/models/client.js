@@ -10,7 +10,6 @@ const clientSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    unique: true,
     lowercase: true,
     trim: true
   },
@@ -23,20 +22,46 @@ const clientSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  // Client type: individual, broker, agency
   type: {
     type: String,
-    enum: ['buyer', 'seller', 'reference'],
-    required: true
+    enum: ['individual', 'broker', 'agency'],
+    required: true,
+    default: 'individual'
   },
+  // Client status: active, inactive, banned
   status: {
     type: String,
-    enum: ['active', 'inactive', 'prospect', 'closed'],
+    enum: ['active', 'inactive', 'banned'],
     default: 'active'
   },
+  // Location/city
+  location: {
+    type: String,
+    trim: true
+  },
+  // Lead source
+  leadSource: {
+    type: String,
+    enum: ['website', 'walk-in', 'instagram', 'facebook', 'referral', 'google', 'other'],
+    default: 'other'
+  },
+  // Tags for categorization
+  tags: [{
+    type: String,
+    trim: true
+  }],
+  // Notes about the client
+  notes: {
+    type: String,
+    trim: true,
+    maxlength: 2000
+  },
+  // Preferences for property search
   preferences: {
     propertyTypes: [{
       type: String,
-      enum: ['Apartment', 'House', 'Villa', 'Office', 'Shop', 'Warehouse', 'Land']
+      enum: ['Apartment', 'House', 'Villa', 'Office', 'Shop', 'Warehouse', 'Land', 'Commercial']
     }],
     cities: [String],
     budget: {
@@ -48,24 +73,12 @@ const clientSchema = new mongoose.Schema({
       max: Number
     }
   },
-  notes: {
-    type: String,
-    trim: true,
-    maxlength: 1000
-  },
-  source: {
-    type: String,
-    enum: ['website', 'referral', 'walk-in', 'social-media', 'other'],
-    default: 'other'
-  },
+  // Assigned user/agent
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
+  // Timestamps
   createdAt: {
     type: Date,
     default: Date.now
@@ -78,13 +91,23 @@ const clientSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for better query performance
+// Indexes for better query performance
 clientSchema.index({ type: 1, status: 1 });
 clientSchema.index({ email: 1 });
+clientSchema.index({ phone: 1 });
 clientSchema.index({ assignedTo: 1 });
+clientSchema.index({ location: 1 });
+clientSchema.index({ leadSource: 1 });
+clientSchema.index({ tags: 1 });
 clientSchema.index({ createdAt: -1 });
 
-// Ensure unique email per type (a person can be both buyer and seller)
-clientSchema.index({ email: 1, type: 1 }, { unique: true });
+// Ensure unique email
+clientSchema.index({ email: 1 }, { unique: true });
+
+// Pre-save middleware to update updatedAt
+clientSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
 
 module.exports = mongoose.model('Client', clientSchema);
