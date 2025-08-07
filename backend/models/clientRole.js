@@ -94,6 +94,52 @@ clientRoleSchema.pre('save', function(next) {
   next();
 });
 
+// Post-save middleware to update client's activeRoles and status
+clientRoleSchema.post('save', async function() {
+  try {
+    const Client = mongoose.model('Client');
+    const ClientRole = mongoose.model('ClientRole');
+    
+    // Get all active roles for this client
+    const activeRoles = await ClientRole.find({
+      clientId: this.clientId,
+      status: 'active'
+    }).distinct('role');
+    
+    // Update client's activeRoles
+    await Client.findByIdAndUpdate(this.clientId, {
+      activeRoles: activeRoles,
+      // Automatically set status to active if there are active roles, inactive otherwise
+      status: activeRoles.length > 0 ? 'active' : 'inactive'
+    });
+  } catch (error) {
+    console.error('Error updating client activeRoles and status:', error);
+  }
+});
+
+// Post-remove middleware to update client's activeRoles and status
+clientRoleSchema.post('remove', async function() {
+  try {
+    const Client = mongoose.model('Client');
+    const ClientRole = mongoose.model('ClientRole');
+    
+    // Get all active roles for this client
+    const activeRoles = await ClientRole.find({
+      clientId: this.clientId,
+      status: 'active'
+    }).distinct('role');
+    
+    // Update client's activeRoles
+    await Client.findByIdAndUpdate(this.clientId, {
+      activeRoles: activeRoles,
+      // Automatically set status to active if there are active roles, inactive otherwise
+      status: activeRoles.length > 0 ? 'active' : 'inactive'
+    });
+  } catch (error) {
+    console.error('Error updating client activeRoles and status:', error);
+  }
+});
+
 // Virtual for commission display
 clientRoleSchema.virtual('commissionDisplay').get(function() {
   if (!this.commission || this.commission.value === 0) return null;
