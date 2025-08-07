@@ -37,7 +37,32 @@ const AddClient = () => {
     try {
       setLoading(true);
       const response = await apiService.getClient(id);
-      setClient(response.client);
+      
+      // Ensure preferences object exists with all required properties
+      const clientData = response.client;
+      const preferences = clientData.preferences || {};
+      
+      setClient({
+        name: clientData.name || '',
+        email: clientData.email || '',
+        phone: clientData.phone || '',
+        address: clientData.address || '',
+        type: clientData.type || 'individual',
+        leadSource: clientData.leadSource || 'other',
+        preferences: {
+          propertyTypes: preferences.propertyTypes || [],
+          cities: preferences.cities || [],
+          budget: {
+            min: preferences.budget?.min || '',
+            max: preferences.budget?.max || ''
+          },
+          area: {
+            min: preferences.area?.min || '',
+            max: preferences.area?.max || ''
+          }
+        },
+        notes: clientData.notes || ''
+      });
     } catch (err) {
       setError(err.message);
     } finally {
