@@ -124,7 +124,6 @@ router.post('/', auth, [
   body('email').isEmail().normalizeEmail().withMessage('Please enter a valid email'),
   body('phone').trim().isLength({ min: 10 }).withMessage('Phone number must be at least 10 characters'),
   body('type').isIn(['individual', 'broker', 'agency']).withMessage('Invalid client type'),
-  body('status').optional().isIn(['active', 'inactive', 'banned']).withMessage('Invalid status'),
   body('leadSource').optional().isIn(['website', 'walk-in', 'instagram', 'facebook', 'referral', 'google', 'other']).withMessage('Invalid lead source'),
   body('assignedTo').optional().isMongoId().withMessage('Invalid assigned user ID')
 ], async (req, res) => {
@@ -141,7 +140,6 @@ router.post('/', auth, [
       phone,
       address,
       type,
-      status,
       location,
       leadSource,
       tags,
@@ -158,14 +156,14 @@ router.post('/', auth, [
       });
     }
 
-    // Create new client
+    // Create new client (status will be automatically set to 'active' by default)
     const client = new Client({
       name,
       email,
       phone,
       address,
       type,
-      status: status || 'active',
+      status: 'active', // Always active when created
       preferences,
       notes,
       leadSource: leadSource || 'other',
@@ -201,7 +199,6 @@ router.put('/:id', auth, [
   body('email').optional().isEmail().normalizeEmail().withMessage('Please enter a valid email'),
   body('phone').optional().trim().isLength({ min: 10 }).withMessage('Phone number must be at least 10 characters'),
   body('type').optional().isIn(['individual', 'broker', 'agency']).withMessage('Invalid client type'),
-  body('status').optional().isIn(['active', 'inactive', 'banned']).withMessage('Invalid status'),
   body('leadSource').optional().isIn(['website', 'walk-in', 'instagram', 'facebook', 'referral', 'google', 'other']).withMessage('Invalid lead source'),
   body('assignedTo').optional().isMongoId().withMessage('Invalid assigned user ID')
 ], async (req, res) => {
@@ -230,9 +227,9 @@ router.put('/:id', auth, [
       }
     }
 
-    // Update client fields
+    // Update client fields (excluding status which is managed automatically)
     Object.keys(req.body).forEach(key => {
-      if (key !== 'files' && key !== 'owner' && key !== 'ref') {
+      if (key !== 'files' && key !== 'owner' && key !== 'ref' && key !== 'status') {
         client[key] = req.body[key];
       }
     });
@@ -298,13 +295,19 @@ router.get('/stats/overview', auth, async (req, res) => {
           },
           inactiveClients: {
             $sum: { $cond: [{ $eq: ['$status', 'inactive'] }, 1, 0] }
-          },
-          bannedClients: {
-            $sum: { $cond: [{ $eq: ['$status', 'banned'] }, 1, 0] }
           }
         }
       }
     ]);
+
+    // Get clients with no active roles
+    const activeNoRoles = await Client.countDocuments({
+      status: 'active',
+      $or: [
+        { activeRoles: { $exists: false } },
+        { activeRoles: { $size: 0 } }
+      ]
+    });
 
     const typeStats = await Client.aggregate([
       {
@@ -324,15 +327,40 @@ router.get('/stats/overview', auth, async (req, res) => {
       }
     ]);
 
+    // Get role statistics
+    const roleStats = await Client.aggregate([
+      {
+        $unwind: {
+          path: '$activeRoles',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: '$activeRoles',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $match: {
+          _id: { $ne: null }
+        }
+      }
+    ]);
+
     res.json({
-      overview: stats[0] || {
+      overview: {
+        ...stats[0],
+        activeNoRoles
+      } || {
         totalClients: 0,
         activeClients: 0,
         inactiveClients: 0,
-        bannedClients: 0
+        activeNoRoles: 0
       },
       byType: typeStats,
-      bySource: sourceStats
+      bySource: sourceStats,
+      byRole: roleStats
     });
 
   } catch (error) {

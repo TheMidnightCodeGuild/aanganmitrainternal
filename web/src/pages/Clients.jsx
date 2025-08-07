@@ -9,7 +9,9 @@ import {
   Delete as TrashIcon,
   Person as UserIcon,
   Business as BuildingOfficeIcon,
-  Group as UserGroupIcon
+  Group as UserGroupIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 import apiService from '../services/apiService';
 
@@ -24,6 +26,7 @@ const Clients = () => {
     search: '',
     type: '',
     status: '',
+    role: '',
     page: 1,
     limit: 10,
     sortBy: 'createdAt',
@@ -106,34 +109,74 @@ const Clients = () => {
   };
 
   // Get role badge color
-  const getRoleBadgeColor = (type) => {
-    switch (type) {
+  const getRoleBadgeColor = (role) => {
+    switch (role) {
       case 'buyer': return 'bg-blue-100 text-blue-800';
       case 'seller': return 'bg-green-100 text-green-800';
-      case 'reference': return 'bg-purple-100 text-purple-800';
+      case 'referrer': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   // Get status badge color
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'prospect': return 'bg-yellow-100 text-yellow-800';
-      case 'inactive': return 'bg-gray-100 text-gray-800';
-      case 'closed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const getStatusBadgeColor = (status, activeRoles) => {
+    if (status === 'inactive') {
+      return 'bg-gray-100 text-gray-800';
     }
+    
+    if (!activeRoles || activeRoles.length === 0) {
+      return 'bg-yellow-100 text-yellow-800';
+    }
+    
+    return 'bg-green-100 text-green-800';
   };
 
   // Get role icon
-  const getRoleIcon = (type) => {
-    switch (type) {
+  const getRoleIcon = (role) => {
+    switch (role) {
       case 'buyer': return <UserIcon className="w-4 h-4" />;
       case 'seller': return <BuildingOfficeIcon className="w-4 h-4" />;
-      case 'reference': return <UserGroupIcon className="w-4 h-4" />;
+      case 'referrer': return <UserGroupIcon className="w-4 h-4" />;
       default: return <UserIcon className="w-4 h-4" />;
     }
+  };
+
+  // Render status display
+  const renderStatusDisplay = (client) => {
+    if (client.status === 'inactive') {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          <CancelIcon className="w-3 h-3 mr-1" />
+          Inactive
+        </span>
+      );
+    }
+
+    if (!client.activeRoles || client.activeRoles.length === 0) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+          <CheckCircleIcon className="w-3 h-3 mr-1" />
+          Active (No Roles)
+        </span>
+      );
+    }
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          <CheckCircleIcon className="w-3 h-3 mr-1" />
+          Active
+        </span>
+        {client.activeRoles.map((role, index) => (
+          <span key={index} className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(role)}`}>
+            {getRoleIcon(role)}
+            <span className="ml-1">
+              {role === 'referrer' ? 'Reference' : role.charAt(0).toUpperCase() + role.slice(1)}
+            </span>
+          </span>
+        ))}
+      </div>
+    );
   };
 
   if (loading && clients.length === 0) {
@@ -160,7 +203,7 @@ const Clients = () => {
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             <PlusIcon className="w-4 h-4 mr-2" />
-            Add Client
+            Add Buyer
           </Link>
         </div>
       </div>
@@ -183,7 +226,7 @@ const Clients = () => {
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 rounded-lg">
-                <UserIcon className="w-6 h-6 text-green-600" />
+                <CheckCircleIcon className="w-6 h-6 text-green-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">Active</p>
@@ -198,20 +241,20 @@ const Clients = () => {
                 <UserIcon className="w-6 h-6 text-yellow-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Prospects</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.overview.prospectClients}</p>
+                <p className="text-sm font-medium text-gray-500">Active (No Roles)</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.overview.activeNoRoles || 0}</p>
               </div>
             </div>
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <UserIcon className="w-6 h-6 text-red-600" />
+              <div className="p-2 bg-gray-100 rounded-lg">
+                <CancelIcon className="w-6 h-6 text-gray-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Closed</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.overview.closedClients}</p>
+                <p className="text-sm font-medium text-gray-500">Inactive</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.overview.inactiveClients}</p>
               </div>
             </div>
           </div>
@@ -261,26 +304,25 @@ const Clients = () => {
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
                   <option value="">All Types</option>
-                  <option value="buyer">Buyer</option>
-                  <option value="seller">Seller</option>
-                  <option value="reference">Reference</option>
+                  <option value="individual">Individual</option>
+                  <option value="broker">Broker</option>
+                  <option value="agency">Agency</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
+                  Role
                 </label>
                 <select
-                  value={filters.status}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  value={filters.role}
+                  onChange={(e) => handleFilterChange('role', e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
-                  <option value="">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="prospect">Prospect</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="closed">Closed</option>
+                  <option value="">All Roles</option>
+                  <option value="buyer">Buyer</option>
+                  <option value="seller">Seller</option>
+                  <option value="referrer">Reference</option>
                 </select>
               </div>
 
@@ -335,7 +377,7 @@ const Clients = () => {
             <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No clients found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Get started by creating a new client.
+              Get started by creating a new buyer or adding sellers/references through property listings.
             </p>
             <div className="mt-6">
               <Link
@@ -343,7 +385,7 @@ const Clients = () => {
                 className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <PlusIcon className="w-4 h-4 mr-2" />
-                Add Client
+                Add Buyer
               </Link>
             </div>
           </div>
@@ -355,22 +397,19 @@ const Clients = () => {
                   <div className="flex items-center space-x-4">
                     <div className="flex-shrink-0">
                       <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                        {getRoleIcon(client.type)}
+                        <UserIcon className="w-5 h-5 text-gray-600" />
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 mb-2">
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {client.name}
                         </p>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(client.type)}`}>
                           {client.type.charAt(0).toUpperCase() + client.type.slice(1)}
                         </span>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(client.status)}`}>
-                          {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                        </span>
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      <div className="flex items-center space-x-4 text-sm text-gray-500 mb-2">
                         <span>{client.email}</span>
                         <span>•</span>
                         <span>{client.phone}</span>
@@ -380,6 +419,9 @@ const Clients = () => {
                             <span>Assigned to {client.assignedTo.name}</span>
                           </>
                         )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {renderStatusDisplay(client)}
                       </div>
                     </div>
                   </div>

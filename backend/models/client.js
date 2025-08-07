@@ -29,12 +29,17 @@ const clientSchema = new mongoose.Schema({
     required: true,
     default: 'individual'
   },
-  // Client status: active, inactive, banned
+  // Client status: active, inactive - automatically managed based on property listings
   status: {
     type: String,
-    enum: ['active', 'inactive', 'banned'],
+    enum: ['active', 'inactive'],
     default: 'active'
   },
+  // Active roles - computed field that will be populated from ClientRole
+  activeRoles: [{
+    type: String,
+    enum: ['buyer', 'seller', 'referrer']
+  }],
   // Location/city
   location: {
     type: String,
@@ -99,6 +104,7 @@ clientSchema.index({ assignedTo: 1 });
 clientSchema.index({ location: 1 });
 clientSchema.index({ leadSource: 1 });
 clientSchema.index({ tags: 1 });
+clientSchema.index({ activeRoles: 1 });
 clientSchema.index({ createdAt: -1 });
 
 // Ensure unique email
@@ -109,5 +115,30 @@ clientSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();
 });
+
+// Virtual for status display
+clientSchema.virtual('statusDisplay').get(function() {
+  if (this.status === 'inactive') {
+    return 'Inactive';
+  }
+  
+  if (!this.activeRoles || this.activeRoles.length === 0) {
+    return 'Active (No Roles)';
+  }
+  
+  const roleLabels = this.activeRoles.map(role => {
+    switch (role) {
+      case 'buyer': return 'Buyer';
+      case 'seller': return 'Seller';
+      case 'referrer': return 'Reference';
+      default: return role;
+    }
+  });
+  
+  return `Active (${roleLabels.join(', ')})`;
+});
+
+// Ensure virtuals are included in JSON output
+clientSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model('Client', clientSchema);
