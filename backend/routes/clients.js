@@ -93,6 +93,71 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// @route   POST /api/clients/check-duplicates
+// @desc    Check for duplicate email and phone
+// @access  Private
+router.post('/check-duplicates', auth, [
+  body('email').optional().isEmail().normalizeEmail().withMessage('Please enter a valid email'),
+  body('phone').optional().trim().isLength({ min: 10 }).withMessage('Phone number must be at least 10 characters'),
+  body('excludeId').optional().isMongoId().withMessage('Invalid client ID for exclusion')
+], async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, phone, excludeId } = req.body;
+    const duplicates = {};
+
+    // Check for email duplicates
+    if (email) {
+      const emailFilter = { email };
+      if (excludeId) {
+        emailFilter._id = { $ne: excludeId };
+      }
+      const existingEmail = await Client.findOne(emailFilter);
+      if (existingEmail) {
+        duplicates.email = {
+          exists: true,
+          clientId: existingEmail._id,
+          clientName: existingEmail.name
+        };
+      } else {
+        duplicates.email = { exists: false };
+      }
+    }
+
+    // Check for phone duplicates
+    if (phone) {
+      const phoneFilter = { phone };
+      if (excludeId) {
+        phoneFilter._id = { $ne: excludeId };
+      }
+      const existingPhone = await Client.findOne(phoneFilter);
+      if (existingPhone) {
+        duplicates.phone = {
+          exists: true,
+          clientId: existingPhone._id,
+          clientName: existingPhone.name
+        };
+      } else {
+        duplicates.phone = { exists: false };
+      }
+    }
+
+    res.json({
+      duplicates,
+      hasDuplicates: Object.values(duplicates).some(dup => dup.exists)
+    });
+
+  } catch (error) {
+    console.error('Check duplicates error:', error);
+    res.status(500).json({ message: 'Server error while checking duplicates' });
+  }
+});
+
 // @route   GET /api/clients/:id
 // @desc    Get single client by ID
 // @access  Private
@@ -149,10 +214,18 @@ router.post('/', auth, [
     } = req.body;
 
     // Check if client already exists with same email
-    const existingClient = await Client.findOne({ email });
-    if (existingClient) {
+    const existingClientByEmail = await Client.findOne({ email });
+    if (existingClientByEmail) {
       return res.status(400).json({ 
         message: 'A client with this email already exists' 
+      });
+    }
+
+    // Check if client already exists with same phone
+    const existingClientByPhone = await Client.findOne({ phone });
+    if (existingClientByPhone) {
+      return res.status(400).json({ 
+        message: 'A client with this phone number already exists' 
       });
     }
 
@@ -183,8 +256,19 @@ router.post('/', auth, [
   } catch (error) {
     console.error('Create client error:', error);
     if (error.code === 11000) {
+      // Check which field caused the duplicate key error
+      if (error.keyPattern && error.keyPattern.email) {
+        return res.status(400).json({ 
+          message: 'A client with this email already exists' 
+        });
+      }
+      if (error.keyPattern && error.keyPattern.phone) {
+        return res.status(400).json({ 
+          message: 'A client with this phone number already exists' 
+        });
+      }
       return res.status(400).json({ 
-        message: 'A client with this email already exists' 
+        message: 'A client with this information already exists' 
       });
     }
     res.status(500).json({ message: 'Server error while creating client' });
@@ -216,13 +300,26 @@ router.put('/:id', auth, [
 
     // Check if email already exists (excluding current client)
     if (req.body.email) {
-      const existingClient = await Client.findOne({
+      const existingClientByEmail = await Client.findOne({
         email: req.body.email,
         _id: { $ne: req.params.id }
       });
-      if (existingClient) {
+      if (existingClientByEmail) {
         return res.status(400).json({ 
           message: 'A client with this email already exists' 
+        });
+      }
+    }
+
+    // Check if phone already exists (excluding current client)
+    if (req.body.phone) {
+      const existingClientByPhone = await Client.findOne({
+        phone: req.body.phone,
+        _id: { $ne: req.params.id }
+      });
+      if (existingClientByPhone) {
+        return res.status(400).json({ 
+          message: 'A client with this phone number already exists' 
         });
       }
     }
@@ -248,8 +345,19 @@ router.put('/:id', auth, [
       return res.status(404).json({ message: 'Client not found' });
     }
     if (error.code === 11000) {
+      // Check which field caused the duplicate key error
+      if (error.keyPattern && error.keyPattern.email) {
+        return res.status(400).json({ 
+          message: 'A client with this email already exists' 
+        });
+      }
+      if (error.keyPattern && error.keyPattern.phone) {
+        return res.status(400).json({ 
+          message: 'A client with this phone number already exists' 
+        });
+      }
       return res.status(400).json({ 
-        message: 'A client with this email already exists' 
+        message: 'A client with this information already exists' 
       });
     }
     res.status(500).json({ message: 'Server error while updating client' });

@@ -110,6 +110,9 @@ clientSchema.index({ createdAt: -1 });
 // Ensure unique email
 clientSchema.index({ email: 1 }, { unique: true });
 
+// Ensure unique phone
+clientSchema.index({ phone: 1 }, { unique: true });
+
 // Pre-save middleware to update updatedAt
 clientSchema.pre('save', function(next) {
   this.updatedAt = new Date();

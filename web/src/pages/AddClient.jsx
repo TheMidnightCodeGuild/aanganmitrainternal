@@ -10,6 +10,8 @@ const AddClient = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [client, setClient] = useState({
     name: '',
     email: '',
@@ -37,7 +39,32 @@ const AddClient = () => {
     try {
       setLoading(true);
       const response = await apiService.getClient(id);
-      setClient(response.client);
+      
+      // Ensure preferences object exists with all required properties
+      const clientData = response.client;
+      const preferences = clientData.preferences || {};
+      
+      setClient({
+        name: clientData.name || '',
+        email: clientData.email || '',
+        phone: clientData.phone || '',
+        address: clientData.address || '',
+        type: clientData.type || 'individual',
+        leadSource: clientData.leadSource || 'other',
+        preferences: {
+          propertyTypes: preferences.propertyTypes || [],
+          cities: preferences.cities || [],
+          budget: {
+            min: preferences.budget?.min || '',
+            max: preferences.budget?.max || ''
+          },
+          area: {
+            min: preferences.area?.min || '',
+            max: preferences.area?.max || ''
+          }
+        },
+        notes: clientData.notes || ''
+      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -57,6 +84,46 @@ const AddClient = () => {
       }));
     } else {
       setClient(prev => ({ ...prev, [field]: value }));
+    }
+
+    // Clear validation errors when user starts typing
+    if (validationErrors[field]) {
+      setValidationErrors(prev => ({ ...prev, [field]: '' }));
+    }
+
+    // Check for duplicates on email and phone changes
+    if (field === 'email' || field === 'phone') {
+      checkDuplicates(field, value);
+    }
+  };
+
+  const checkDuplicates = async (field, value) => {
+    if (!value || value.length < 3) return; // Don't check if value is too short
+
+    try {
+      setCheckingDuplicates(true);
+      const email = field === 'email' ? value : client.email;
+      const phone = field === 'phone' ? value : client.phone;
+      
+      const response = await apiService.checkClientDuplicates(email, phone, isEditing ? id : null);
+      
+      if (response.duplicates) {
+        const newErrors = { ...validationErrors };
+        
+        if (response.duplicates.email?.exists) {
+          newErrors.email = `A client with this email already exists (${response.duplicates.email.clientName})`;
+        }
+        
+        if (response.duplicates.phone?.exists) {
+          newErrors.phone = `A client with this phone number already exists (${response.duplicates.phone.clientName})`;
+        }
+        
+        setValidationErrors(newErrors);
+      }
+    } catch (err) {
+      console.error('Error checking duplicates:', err);
+    } finally {
+      setCheckingDuplicates(false);
     }
   };
 
@@ -86,8 +153,25 @@ const AddClient = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setValidationErrors({});
 
+    // Final duplicate check before submission
     try {
+      const response = await apiService.checkClientDuplicates(client.email, client.phone, isEditing ? id : null);
+      
+      if (response.hasDuplicates) {
+        const newErrors = {};
+        if (response.duplicates.email?.exists) {
+          newErrors.email = `A client with this email already exists (${response.duplicates.email.clientName})`;
+        }
+        if (response.duplicates.phone?.exists) {
+          newErrors.phone = `A client with this phone number already exists (${response.duplicates.phone.clientName})`;
+        }
+        setValidationErrors(newErrors);
+        setLoading(false);
+        return;
+      }
+
       if (isEditing) {
         await apiService.updateClient(id, client);
       } else {
@@ -182,14 +266,26 @@ const AddClient = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email Address *
                 </label>
-                <input
-                  type="email"
-                  required
-                  value={client.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter email address"
-                />
+                <div className="relative">
+                  <input
+                    type="email"
+                    required
+                    value={client.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                      validationErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter email address"
+                  />
+                  {checkingDuplicates && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    </div>
+                  )}
+                </div>
+                {validationErrors.email && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+                )}
               </div>
 
               {/* Phone */}
@@ -197,14 +293,26 @@ const AddClient = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Phone Number *
                 </label>
-                <input
-                  type="tel"
-                  required
-                  value={client.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter phone number"
-                />
+                <div className="relative">
+                  <input
+                    type="tel"
+                    required
+                    value={client.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                      validationErrors.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter phone number"
+                  />
+                  {checkingDuplicates && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    </div>
+                  )}
+                </div>
+                {validationErrors.phone && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+                )}
               </div>
 
               {/* Client Type */}
