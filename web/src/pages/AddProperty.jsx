@@ -281,20 +281,12 @@ const AddProperty = () => {
   // Check if email/phone already exists in database
   const checkClientExists = async (email, phone) => {
     try {
-      const response = await apiService.getClients({ 
-        search: email,
-        limit: 1000 
-      });
+      const response = await apiService.checkClientDuplicates(email, phone);
       
-      const emailExists = response.clients.some(client => 
-        client.email.toLowerCase() === email.toLowerCase()
-      );
-      
-      const phoneExists = response.clients.some(client => 
-        client.phone.replace(/\s/g, '') === phone.replace(/\s/g, '')
-      );
-      
-      return { emailExists, phoneExists };
+      return { 
+        emailExists: response.duplicates?.email?.exists || false, 
+        phoneExists: response.duplicates?.phone?.exists || false 
+      };
     } catch (error) {
       console.error('Error checking client existence:', error);
       return { emailExists: false, phoneExists: false };
@@ -320,14 +312,14 @@ const AddProperty = () => {
     // Check database for existing email/phone
     if (newOwner.email && isValidEmail(newOwner.email)) {
       setValidatingOwner(true);
-      const { emailExists, phoneExists } = await checkClientExists(newOwner.email, newOwner.phone);
+      const response = await apiService.checkClientDuplicates(newOwner.email, newOwner.phone);
       
-      if (emailExists) {
-        errors.newOwnerEmail = 'A client with this email already exists';
+      if (response.duplicates?.email?.exists) {
+        errors.newOwnerEmail = `A client with this email already exists (${response.duplicates.email.clientName})`;
       }
       
-      if (phoneExists) {
-        errors.newOwnerPhone = 'A client with this phone number already exists';
+      if (response.duplicates?.phone?.exists) {
+        errors.newOwnerPhone = `A client with this phone number already exists (${response.duplicates.phone.clientName})`;
       }
       setValidatingOwner(false);
     }
@@ -355,14 +347,14 @@ const AddProperty = () => {
     // Check database for existing email/phone
     if (newRef.email && isValidEmail(newRef.email)) {
       setValidatingRef(true);
-      const { emailExists, phoneExists } = await checkClientExists(newRef.email, newRef.phone);
+      const response = await apiService.checkClientDuplicates(newRef.email, newRef.phone);
       
-      if (emailExists) {
-        errors.newRefEmail = 'A client with this email already exists';
+      if (response.duplicates?.email?.exists) {
+        errors.newRefEmail = `A client with this email already exists (${response.duplicates.email.clientName})`;
       }
       
-      if (phoneExists) {
-        errors.newRefPhone = 'A client with this phone number already exists';
+      if (response.duplicates?.phone?.exists) {
+        errors.newRefPhone = `A client with this phone number already exists (${response.duplicates.phone.clientName})`;
       }
       setValidatingRef(false);
     }

@@ -151,6 +151,17 @@ class ApiService {
     return await this.request('/clients/stats/overview');
   }
 
+  async checkClientDuplicates(email, phone, excludeId = null) {
+    const data = { email, phone };
+    if (excludeId) {
+      data.excludeId = excludeId;
+    }
+    return await this.request('/clients/check-duplicates', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
   // Logout method
   logout() {
     this.removeToken();
