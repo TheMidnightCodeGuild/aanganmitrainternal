@@ -4,11 +4,24 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const PublicRoute = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, isAuthenticated } = useAuth();
 
-  if (loading) return <div>Loading...</div>;
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
-  return !user ? <Outlet /> : <Navigate to="/dashboard" replace />;
+  // If authenticated, redirect to dashboard
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // If not authenticated, render public routes
+  return <Outlet />;
 };
 
 export default PublicRoute;
