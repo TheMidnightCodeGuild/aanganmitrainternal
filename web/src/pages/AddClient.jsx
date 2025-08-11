@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowBack, Save, Person } from '@mui/icons-material';
+import { ArrowBack, Save, Person, Visibility, Email, Phone } from '@mui/icons-material';
 import apiService from '../services/apiService';
 
 const AddClient = () => {
@@ -12,6 +12,7 @@ const AddClient = () => {
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState({});
   const [client, setClient] = useState({
     name: '',
     email: '',
@@ -86,9 +87,12 @@ const AddClient = () => {
       setClient(prev => ({ ...prev, [field]: value }));
     }
 
-    // Clear validation errors when user starts typing
+    // Clear validation errors and duplicate info when user starts typing
     if (validationErrors[field]) {
       setValidationErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    if (duplicateInfo[field]) {
+      setDuplicateInfo(prev => ({ ...prev, [field]: null }));
     }
 
     // Check for duplicates on email and phone changes
@@ -109,16 +113,30 @@ const AddClient = () => {
       
       if (response.duplicates) {
         const newErrors = { ...validationErrors };
+        const newDuplicateInfo = { ...duplicateInfo };
         
         if (response.duplicates.email?.exists) {
-          newErrors.email = `A client with this email already exists (${response.duplicates.email.clientName})`;
+          newErrors.email = `A client with this email already exists`;
+          newDuplicateInfo.email = response.duplicates.email;
+        } else {
+          newDuplicateInfo.email = null;
         }
         
         if (response.duplicates.phone?.exists) {
-          newErrors.phone = `A client with this phone number already exists (${response.duplicates.phone.clientName})`;
+          newErrors.phone = `A client with this phone number already exists`;
+          newDuplicateInfo.phone = response.duplicates.phone;
+        } else {
+          newDuplicateInfo.phone = null;
         }
         
         setValidationErrors(newErrors);
+        setDuplicateInfo(newDuplicateInfo);
+      } else {
+        // Clear duplicate info if no duplicates found
+        setDuplicateInfo(prev => ({
+          ...prev,
+          [field]: null
+        }));
       }
     } catch (err) {
       console.error('Error checking duplicates:', err);
@@ -161,13 +179,17 @@ const AddClient = () => {
       
       if (response.hasDuplicates) {
         const newErrors = {};
+        const newDuplicateInfo = {};
         if (response.duplicates.email?.exists) {
-          newErrors.email = `A client with this email already exists (${response.duplicates.email.clientName})`;
+          newErrors.email = `A client with this email already exists`;
+          newDuplicateInfo.email = response.duplicates.email;
         }
         if (response.duplicates.phone?.exists) {
-          newErrors.phone = `A client with this phone number already exists (${response.duplicates.phone.clientName})`;
+          newErrors.phone = `A client with this phone number already exists`;
+          newDuplicateInfo.phone = response.duplicates.phone;
         }
         setValidationErrors(newErrors);
+        setDuplicateInfo(newDuplicateInfo);
         setLoading(false);
         return;
       }
@@ -286,6 +308,32 @@ const AddClient = () => {
                 {validationErrors.email && (
                   <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
                 )}
+                {/* Duplicate Info Box for Email */}
+                {duplicateInfo.email && (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center">
+                          <Email className="w-4 h-4 text-amber-600 mr-2" />
+                          <h4 className="text-sm font-medium text-amber-800">
+                            Existing Client Found
+                          </h4>
+                        </div>
+                        <p className="mt-1 text-sm text-amber-700">
+                          <strong>{duplicateInfo.email.clientName}</strong> already has this email address.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/clients/${duplicateInfo.email.clientId}`)}
+                        className="ml-3 inline-flex items-center px-2.5 py-1.5 border border-amber-300 shadow-sm text-xs font-medium rounded text-amber-700 bg-white hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+                      >
+                        <Visibility className="w-3 h-3 mr-1" />
+                        View Details
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Phone */}
@@ -312,6 +360,32 @@ const AddClient = () => {
                 </div>
                 {validationErrors.phone && (
                   <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+                )}
+                {/* Duplicate Info Box for Phone */}
+                {duplicateInfo.phone && (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center">
+                          <Phone className="w-4 h-4 text-amber-600 mr-2" />
+                          <h4 className="text-sm font-medium text-amber-800">
+                            Existing Client Found
+                          </h4>
+                        </div>
+                        <p className="mt-1 text-sm text-amber-700">
+                          <strong>{duplicateInfo.phone.clientName}</strong> already has this phone number.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/clients/${duplicateInfo.phone.clientId}`)}
+                        className="ml-3 inline-flex items-center px-2.5 py-1.5 border border-amber-300 shadow-sm text-xs font-medium rounded text-amber-700 bg-white hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+                      >
+                        <Visibility className="w-3 h-3 mr-1" />
+                        View Details
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -538,4 +612,4 @@ const AddClient = () => {
   );
 };
 
-export default AddClient; 
+export default AddClient;
