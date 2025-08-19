@@ -4,6 +4,12 @@ const API_BASE_URL = 'http://localhost:5001/api';
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    this.authFailureCallback = null;
+  }
+
+  // Set callback for authentication failures
+  setAuthFailureCallback(callback) {
+    this.authFailureCallback = callback;
   }
 
   // Get auth token from localStorage
@@ -42,6 +48,16 @@ class ApiService {
     try {
       const response = await fetch(url, config);
       const data = await response.json();
+
+      // Handle authentication failures
+      if (response.status === 401 || response.status === 403) {
+        console.error('Authentication failed:', data.message || 'Unauthorized');
+        this.removeToken();
+        if (this.authFailureCallback) {
+          this.authFailureCallback();
+        }
+        throw new Error('Authentication failed. Please login again.');
+      }
 
       if (!response.ok) {
         throw new Error(data.message || 'API request failed');
@@ -162,6 +178,43 @@ class ApiService {
     });
   }
 
+  // Client Role methods
+  async getClientRoles(clientId) {
+    return await this.request(`/client-roles/client/${clientId}`);
+  }
+
+  async createClientRole(roleData) {
+    return await this.request('/client-roles', {
+      method: 'POST',
+      body: JSON.stringify(roleData)
+    });
+  }
+
+  async updateClientRole(roleId, roleData) {
+    return await this.request(`/client-roles/${roleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(roleData)
+    });
+  }
+
+  async deleteClientRole(roleId) {
+    return await this.request(`/client-roles/${roleId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async getClientWithRoles(clientId) {
+    const [clientResponse, rolesResponse] = await Promise.all([
+      this.request(`/clients/${clientId}`),
+      this.request(`/client-roles/client/${clientId}`)
+    ]);
+    
+    return {
+      client: clientResponse.client,
+      roles: rolesResponse.clientRoles
+    };
+  }
+
   // Logout method
   logout() {
     this.removeToken();
@@ -170,6 +223,14 @@ class ApiService {
   // Check if user is authenticated
   isAuthenticated() {
     return !!this.getToken();
+  }
+
+  // Method to simulate authentication failure (for testing)
+  simulateAuthFailure() {
+    this.removeToken();
+    if (this.authFailureCallback) {
+      this.authFailureCallback();
+    }
   }
 }
 

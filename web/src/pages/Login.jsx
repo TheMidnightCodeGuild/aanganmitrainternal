@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/apiService';
@@ -8,7 +8,14 @@ const Login = () => {
   const [error, setError] = useState('');
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, authError, clearAuthError } = useAuth();
+
+  // Clear auth error when component mounts
+  useEffect(() => {
+    if (authError) {
+      clearAuthError();
+    }
+  }, [authError, clearAuthError]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -34,6 +41,14 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="w-full max-w-md bg-white rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold mb-6 text-center">Welcome Back</h2>
+        
+        {/* Show authentication error if exists */}
+        {authError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-700 text-sm">{authError}</p>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block mb-1 font-medium">Email</label>
