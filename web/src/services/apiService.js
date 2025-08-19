@@ -178,6 +178,43 @@ class ApiService {
     });
   }
 
+  // Client Role methods
+  async getClientRoles(clientId) {
+    return await this.request(`/client-roles/client/${clientId}`);
+  }
+
+  async createClientRole(roleData) {
+    return await this.request('/client-roles', {
+      method: 'POST',
+      body: JSON.stringify(roleData)
+    });
+  }
+
+  async updateClientRole(roleId, roleData) {
+    return await this.request(`/client-roles/${roleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(roleData)
+    });
+  }
+
+  async deleteClientRole(roleId) {
+    return await this.request(`/client-roles/${roleId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async getClientWithRoles(clientId) {
+    const [clientResponse, rolesResponse] = await Promise.all([
+      this.request(`/clients/${clientId}`),
+      this.request(`/client-roles/client/${clientId}`)
+    ]);
+    
+    return {
+      client: clientResponse.client,
+      roles: rolesResponse.clientRoles
+    };
+  }
+
   // Logout method
   logout() {
     this.removeToken();

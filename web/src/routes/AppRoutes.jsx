@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from '../pages/Login';
 import Signup from '../pages/Signup';
 import Dashboard from '../pages/Dashboard';
@@ -18,6 +18,17 @@ import PublicRoute from './PublicRoute';
 import AddProperty from '../pages/AddProperty';
 import AddClient from '../pages/AddClient';
 import apiService from '../services/apiService';
+
+// Debug component to track route changes
+const RouteDebugger = () => {
+  const location = useLocation();
+  
+  useEffect(() => {
+    console.log('Route changed to:', location.pathname);
+  }, [location]);
+  
+  return null;
+};
 
 // Component to connect API service with auth context
 const AuthConnector = ({ children }) => {
@@ -51,6 +62,7 @@ const AppRoutes = () => {
     <AuthProvider>
       <AuthConnector>
         <Router>
+          <RouteDebugger />
           <Routes>
             <Route path="/" element={<HomeRedirect />} />
             <Route element={<PublicRoute />}>
