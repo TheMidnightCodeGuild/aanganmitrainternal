@@ -89,12 +89,19 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(userData)
     });
-    
+
     if (data.token) {
       this.setToken(data.token);
     }
-    
+
     return data;
+  }
+
+  async forgotPassword(email, newPassword) {
+    return await this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, newPassword })
+    });
   }
 
   async getCurrentUser() {

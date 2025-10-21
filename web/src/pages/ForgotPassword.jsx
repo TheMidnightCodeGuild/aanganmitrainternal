@@ -1,21 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import apiService from '../services/apiService';
 
-const Login = () => {
-  const [form, setForm] = useState({ email: '', password: '' });
+const ForgotPassword = () => {
+  const [form, setForm] = useState({ email: '', newPassword: '' });
   const [error, setError] = useState('');
-
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
-  const { login, authError, clearAuthError } = useAuth();
-
-  // Clear auth error when component mounts
-  useEffect(() => {
-    if (authError) {
-      clearAuthError();
-    }
-  }, [authError, clearAuthError]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -23,32 +14,31 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password) {
+    if (!form.email || !form.newPassword) {
       setError('Both fields are required.');
       return;
     }
+    if (form.newPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
     setError('');
+    setSuccess('');
     try {
-      const response = await apiService.login(form.email, form.password);
-      login(response.user);
-      navigate('/dashboard');
+      await apiService.forgotPassword(form.email, form.newPassword);
+      setSuccess('Password updated successfully! You can now login with your new password.');
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
     } catch (error) {
-      setError(error.message || 'Login failed. Please try again.');
+      setError(error.message || 'Failed to update password. Please try again.');
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="w-full max-w-md bg-white rounded-lg shadow p-8">
-        <h2 className="text-2xl font-bold mb-6 text-center">Welcome Back</h2>
-        
-        {/* Show authentication error if exists */}
-        {authError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-700 text-sm">{authError}</p>
-          </div>
-        )}
-        
+        <h2 className="text-2xl font-bold mb-6 text-center">Forgot Password</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block mb-1 font-medium">Email</label>
@@ -62,11 +52,11 @@ const Login = () => {
             />
           </div>
           <div>
-            <label className="block mb-1 font-medium">Password</label>
+            <label className="block mb-1 font-medium">New Password</label>
             <input
               type="password"
-              name="password"
-              value={form.password}
+              name="newPassword"
+              value={form.newPassword}
               onChange={handleChange}
               className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               required
@@ -75,22 +65,20 @@ const Login = () => {
           {error && (
             <div className="text-red-600 text-sm">{error}</div>
           )}
+          {success && (
+            <div className="text-green-600 text-sm">{success}</div>
+          )}
           <button
             type="submit"
             className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
           >
-            Login
+            Update Password
           </button>
         </form>
         <p className="mt-4 text-center text-sm">
-          <Link to="/forgot-password" className="text-blue-600 font-semibold hover:underline">
-            Forgot Password?
-          </Link>
-        </p>
-        <p className="mt-2 text-center text-sm">
-          Don&apos;t have an account?{' '}
-          <Link to="/signup" className="text-blue-600 font-semibold hover:underline">
-            Sign Up
+          Remember your password?{' '}
+          <Link to="/login" className="text-blue-600 font-semibold hover:underline">
+            Login
           </Link>
         </p>
       </div>
@@ -98,4 +86,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default ForgotPassword;
